@@ -14,33 +14,32 @@ prm.Map = mapInflated;
 prm.NumNodes = 50;
 prm.ConnectionDistance = 5;
 startLocation = [2 1];
-endLocation = [12 10];
-path =  [2.0000    1.0000 0;
-    2.5246    1.3943 0.5;
-    2.7836    3.5884 0.2;
-    3.0394    6.8319 0.5;
-    4.9519    7.4415 0.5;
-    9.2191    8.8708 0.2;
-   12.1692   10.0144 0.4;
-   12.0000   10.0000 0.1];%findpath(prm, startLocation, endLocation);
-plot(path(:,1), path(:,2), 'x');
+endLocation = [12 2];
+path =  [ 2.0000    1.0000 0;
+    2.5654    4.2496 0.2;
+    4.0233    7.9945 0.2;
+    7.8562    7.9945 0.2;
+    8.7290    2.9738 0.2;
+    8.9361    2.1709 0.2;
+   12.0000    2.0000 0.1];
+   %findpath(prm, startLocation, endLocation);
 %safe_x = [3 3 4.5   4.5  12.5 12.5 7.5  7.5 2.5 2.5 1   1]';
 %safe_y = [0 2.5 2.5 7     7    12 12 9   9   5.5 5.5 0]';
 %more safe boundaries
-
-safe_x = [2.75 2.75 4.25   4.25 12.25 12.25 7.75  7.75 2.75 2.75 1.25    1.25]';
-safe_y = [0.25    2.75 2.75   7.25  7.25 11.75 11.75 8.75  8.75  5.25 5.25 0.25]';
+%plot(path(:,1), path(:,2), 'x');
+safe_x = [2.75 2.75 4.25   4.25 7.75 7.75 6.25 6.25 12.25 12.25 9.25 9.25 12.25 12.25  9.25 9.25 12.25 12.25 7.75  7.75  3.75 3.75  5.75  5.75  1.25  1.25 2.75 2.75 1.25 1.25 ]';
+safe_y = [0    2.75 2.75   7.25 7.25 5.25 5.25 1.25 1.25   2.25 2.25 4.25 4.25    5.25 5.25 7.25 7.25  11.75 11.75 8.75  8.75 10.75 10.75 11.75 11.75 7.25 7.25 5.25 5.25 0  ]';
 plot(safe_x,safe_y);
 x_X =[2;0];
 x_Y =[1;0];
-
+title('');
 ts = 0.01;
 %t = [0:ts:15];
 %N = length(t);
 y_X = zeros(1,2);
 y_Y = zeros(1,2);
-delayFactor = 15;
-maxDelayFactor = 5;
+delayFactor = 1;
+maxDelayFactor = 7;
 N = 5;
 H = 1;
 attackTime = 1;
@@ -49,7 +48,7 @@ A = [ 0 1;
 B = [0;1/0.5];
 C = [1 0];
 D = 0;
- 
+alpha = 0.7;
 states = {'x' 'x_dot'};
 inputs = {'u'};
 outputs = {'x'};
@@ -57,7 +56,7 @@ sys_ss = ss(A,B,C,D,'statename',states,'inputname',inputs,'outputname',outputs);
 Q = 10000;
 R = 0.0001;
 
-sys = c2d(sys_ss, ts*maxDelayFactor);
+sys = c2d(sys_ss, ts);
 MPCobj_X = mpc(sys);
 MPCobj_X.W.OutputVariables = Q;
 MPCobj_X.W.ManipulatedVariables = R;
@@ -91,6 +90,7 @@ estimatedDelayFactor = 1;
 u_X = 0;
 u_Y = 0;
 time = 0;
+index = 1;
 for goalIndex = 2 : length(path)
     r_X = path(goalIndex,1);
     r_Y = path(goalIndex,2);
@@ -106,10 +106,13 @@ for goalIndex = 2 : length(path)
         else 
             if(delayCounter == 0)
                 %estimate delay TODO: add EWMA
-                estimatedDelayFactor = delayFactor;
+                estimatedDelayFactor = (1-alpha)*estimatedDelayFactor + alpha *delayFactor;
+                delayPlot(index) = (delayFactor-1)*100;
+                estimatedDelayPlot(index) = (estimatedDelayFactor-1)*100;
+                index = index + 1;
                 %Adaptation
                 deltaDelay = (maxDelayFactor - estimatedDelayFactor)/N;
-                if(sum(inpolygon(x_X(1),x_Y(1),safe_x,safe_y)) == 1)
+                if(sum(inpolygon(x_X(1),x_Y(1),safe_x,safe_y)) == 0)
                     % We are inside the unsafe region now, apply the
                     % conservative control inputs
                      state_mpc_X.plant = x_X;
@@ -140,7 +143,6 @@ for goalIndex = 2 : length(path)
                         MPCobjYe.MV.RateMin = -2;
                         MPCobjYe.MV.RateMax = 2;
                         state_mpc_Ye = mpcstate(MPCobjYe);
-
                         state_mpc_Xe.plant = x_X;
                         state_mpc_Ye.plant = x_Y;
                         % control input based on estimated delay
@@ -173,7 +175,15 @@ for goalIndex = 2 : length(path)
                         end
                     end
                 end
-                delayFactor = randi([1 maxDelayFactor],1,1);
+               %delayFactor = maxDelayFactor;
+               %delayFactor =  randi([1 maxDelayFactor],1,1);
+                if(mod(index,50) == 0)
+                  if (delayFactor == maxDelayFactor)
+                      delayFactor = 1;
+                  else
+                      delayFactor = maxDelayFactor;
+                  end
+                end
             else
              % u_X(i) = u_X(i-1);
              % u_Y(i) = u_Y(i-1);
@@ -186,8 +196,20 @@ for goalIndex = 2 : length(path)
         [s,x_Y] = ode45(@(t,x_Y) doubleIntModel(x_Y,u_Y),[0 ts],x_Y);
         x_Y = x_Y(end,:)';
         distance = norm([r_X - y_X(1) r_Y - y_Y(1)]);
-        plot(y_X(1), y_Y(1), 'o');
+        plot(y_X(1), y_Y(1), 'b--o');
         time = time + ts;
     end
 end
-title(strcat('Random Delays with adaptation algorithm. Time = ', num2str(time)));
+time
+title('');
+%title(strcat('Random Delays with adaptation algorithm. Time = ', num2str(time)));
+hold off;
+if(delay ==1)
+    figure
+    hold on
+    plot(estimatedDelayPlot,'LineWidth',2);
+    xlabel('Controller time steps');
+    ylabel('Controller Overhead %');
+    plot(delayPlot,'LineWidth',1);
+    legend('Estimated Overhead', 'Actual Overhead');
+end

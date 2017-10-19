@@ -14,16 +14,15 @@ prm.Map = mapInflated;
 prm.NumNodes = 50;
 prm.ConnectionDistance = 5;
 startLocation = [2 1];
-endLocation = [12 10];
-path =  [2.0000    1.0000 0;
-    2.5246    1.3943 0.5;
-    2.7836    3.5884 0.2;
-    3.0394    6.8319 0.5;
-    4.9519    7.4415 0.5;
-    9.2191    8.8708 0.2;
-   12.1692   10.0144 0.4;
-   12.0000   10.0000 0.1];%findpath(prm, startLocation, endLocation);
-plot(path(:,1), path(:,2), 'x');
+endLocation = [12 2];
+path =  [ 2.0000    1.0000 0;
+    2.5654    4.2496 0.2;
+    4.0233    7.9945 0.2;
+    7.8562    7.2997 0.2;
+    8.7290    2.9738 0.2;
+    8.9361    2.1709 0.2;
+   12.0000    2.0000 0.1];
+%plot(path(:,1), path(:,2), 'x');
 x_X =[2;0];
 x_Y =[1;0];
 
@@ -120,4 +119,5 @@ for goalIndex = 2 : length(path)
     end
 end
 time
-title(strcat('No delays. Time = ', num2str(time)));
+title('');
+%title(strcat('No delays. Time = ', num2str(time)));
