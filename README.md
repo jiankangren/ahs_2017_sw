@@ -1,4 +1,4 @@
-# AHS Workspace
+# Online Controller Adaptation:
 ## Matlab Toolboxes Needed:
 - Model Predictive Control Toolbox
 - Robotics Toolbox (To do experiments)
